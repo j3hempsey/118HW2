@@ -80,68 +80,55 @@ main (int argc, char* argv[])
     
     gil::rgb8_image_t img(height, width);
     auto img_view = gil::view(img);
-    
-    float **data_array;
-    data_array = contig2dArray(width, height);
+
     float **tempdata;
-    tempdata = contig2dArray(width, height);
+    tempdata = contig2dArray(width, height / size);
 
     //Recieve all of the data from all of the processes
     while (count < size - 1){
       //height / size will be the max height array we will recieve
       printf("waiting for recv\n");
-      MPI_Recv(&(tempdata[0][0]), width * (height), // / size,
+      MPI_Recv(&(tempdata[0][0]), width * (height / size),
         MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
       printf("recieved\n");
 
-      for (int i = 0; i < height; ++i)
+      int curr_row = status.MPI_SOURCE;
+      for (int i = status.MPI_SOURCE; status.MPI_SOURCE + (i * size) < height; ++i)
       {
         for (int j = 0; j < width; ++j)
         {
-          img_view(j, i) = render(tempdata[j][i]);
+          img_view(j, curr_row) = render(tempdata[j][i]);
         }
+        curr_row += size;
       }
       ++count;
     }
     free(tempdata[0]);
     free(tempdata);
-    free(data_array[0]);
-    free(data_array);
+
     gil::png_write_view("mandelbrot-test.png", const_view(img));
 
   }
   else
   {
-    double minX = -2.1;
-    double maxX = 0.7;
-    double minY = -1.25;
-    double maxY = 1.25;
-    //Workers
-    //Recv the num of rows to process
     float **data;
-    data = contig2dArray(width, height); //(height - rank) / size);
+    data = contig2dArray(width, (height - rank) / size);
 
-    // MPI_Status status;
-    // MPI_Recv(&numProc, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
     printf("Calculating...\n");
-    y = minY;
-    for(int i = 0; i < height; ++i)
-    //for(int i = rank; rank + (i * size) < height; ++i)
+    y = minY + (it * double(rank));
+    for(int i = rank; rank + (i * size) < height; ++i)
     {
       x = minX;
       for (int j = 0; j < width; ++j)
       {
-        data[j][i] = mandelbrot(x, y) / 512.0;
-        printf("%lf, ", mandelbrot(x,y)/512.0);
-        
+        data[j][i] = mandelbrot(x, y) / 512.0;        
         x += jt;
       }
-      y += it;
-      printf("\n");
+      y += (it * double(size));
     }
-    printf("Sending data...%d\n", (width * ((height ))));//- rank) / size)));
+    printf("Sending data...%d\n", (width * ((height - rank) / size)));
     //Send data
-    MPI_Send(&(data[0][0]), (width * ((height )))//- rank)) / size)
+    MPI_Send(&(data[0][0]), (width * ((height - rank) / size))
     , MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
     //free
     free(data[0]);
