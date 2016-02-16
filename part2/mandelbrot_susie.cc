@@ -77,13 +77,34 @@ main (int argc, char* argv[])
     //Master
     MPI_Status status;
     int count;
-    
+
     gil::rgb8_image_t img(height, width);
     auto img_view = gil::view(img);
 
     float **tempdata;
     tempdata = contig2dArray(width, height / size);
 
+    printf("Calculating...\n");
+    y = minY + (it * double(rank));
+    for(int i = rank; rank + (i * size) < height; ++i)
+    {
+      x = minX;
+      for (int j = 0; j < width; ++j)
+      {
+        tempdata[j][i] = mandelbrot(x, y) / 512.0;
+        x += jt;
+      }
+      y += (it * double(size));
+    }
+    int curr_row = 0;
+    for (int i = 0; 0 + (i * size) < height; ++i)
+    {
+      for (int j = 0; j < width; ++j)
+      {
+        img_view(j, curr_row) = render(tempdata[j][i]);
+      }
+      curr_row += size;
+    }
     //Recieve all of the data from all of the processes
     while (count < size - 1){
       //height / size will be the max height array we will recieve
@@ -93,7 +114,7 @@ main (int argc, char* argv[])
       printf("recieved\n");
 
       int curr_row = status.MPI_SOURCE;
-      for (int i = status.MPI_SOURCE; status.MPI_SOURCE + (i * size) < height; ++i)
+      for (int i = curr_row; curr_row < height; ++i)
       {
         for (int j = 0; j < width; ++j)
         {
@@ -112,7 +133,7 @@ main (int argc, char* argv[])
   else
   {
     float **data;
-    data = contig2dArray(width, (height - rank) / size);
+    data = contig2dArray(width, height / size);
 
     printf("Calculating...\n");
     y = minY + (it * double(rank));
@@ -121,7 +142,7 @@ main (int argc, char* argv[])
       x = minX;
       for (int j = 0; j < width; ++j)
       {
-        data[j][i] = mandelbrot(x, y) / 512.0;        
+        data[j][i] = mandelbrot(x, y) / 512.0;
         x += jt;
       }
       y += (it * double(size));
