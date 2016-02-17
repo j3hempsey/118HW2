@@ -74,14 +74,14 @@ main (int argc, char* argv[])
 		}
 	}
 	else {
-		y = minY;
-		for (int i = (height/np) * (rank + 1); i < (height/np) * (rank + 2); ++i) {
+		y = minY + (it * double(rank));
+		for (int i = (height/np) * (rank); i < (height/np) * (rank + 1); ++i) {
 			x = minX;
 			for (int j = 0; j < width; ++j) {
 				img_view(j, i) = render(mandelbrot(x, y)/512.0);
 				x += jt;
 			}
-			y += it;
+			y += (it * double(np));
 		}
 	}
 	MPI_Barrier (MPI_COMM_WORLD); /* Synchronize the nodes */
