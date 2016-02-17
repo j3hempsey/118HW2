@@ -37,7 +37,7 @@ main(int argc, char* argv[]) {
   double maxX = 0.7;
   double minY = -1.25;
   double maxY = 1.25;
-  
+
   int height, width;
   if (argc == 3) {
     height = atoi (argv[1]);
