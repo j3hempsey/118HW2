@@ -78,7 +78,7 @@ main (int argc, char* argv[])
 	gil::rgb8_image_t img(height, width);
 	auto img_view = gil::view(img);
 	
-	MPI_Scatter(&(img_view(0,0)), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
+	MPI_Scatter(&(data[0][0]), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 	if (rank == 0) {
 		y = minY;
@@ -103,11 +103,23 @@ main (int argc, char* argv[])
 		}
 	}
 	
-	MPI_Gather(&(img_view(0,0)), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
+	MPI_Gather(&(procdata[0][0]), height/np, MPI_FLOAT, &(data[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
 	MPI_Barrier (MPI_COMM_WORLD); /* Synchronize the nodes */
 	if (rank == 0) {
-		gil::png_write_view("mandelbrot.png", const_view(img));
+		for (int i = 0; i < height; ++i) {
+			for (int j = 0; j < width; ++j) {
+				 img_view(j, i) = render(data[j][i]);
+			}
+		}
 	}
+	
+	free(procdata[0]);
+    free(procdata);
+    free(data[0]);
+    free(data);
+
+	gil::png_write_view("mandelbrot.png", const_view(img));
+	
 	MPI_Finalize();
 	return 0;
 }
