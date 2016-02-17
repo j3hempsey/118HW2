@@ -14,6 +14,15 @@ using namespace std;
 #define WIDTH = 1000
 #define HEIGHT = 1000
 
+float
+**contig2dArray(int rows, int cols) {
+  float *data = (float *)malloc(rows*cols*sizeof(float));
+    float **array= (float **)malloc(rows*sizeof(float*));
+    for (int i=0; i<rows; i++)
+        array[i] = &(data[cols*i]);
+    return array;
+}
+
 int
 mandelbrot(double x, double y) {
   int maxit = 511;
@@ -40,6 +49,10 @@ main (int argc, char* argv[])
 	double maxY = 1.25;
 
 	int rank, np, height, width;
+	//Array for proc and main
+	float **data;
+	float **procdata;
+
 	if (argc == 3) {
 		height = atoi (argv[1]);
 		width = atoi (argv[2]);
@@ -58,16 +71,21 @@ main (int argc, char* argv[])
 	MPI_Init (&argc, &argv);	/* starts MPI */
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
 	MPI_Comm_size (MPI_COMM_WORLD, &np);	/* Get number of processes */
+	
+	data = contig2dArray(width, height);
+	procdata = contig2dArray(width, height);
 
 	gil::rgb8_image_t img(height, width);
 	auto img_view = gil::view(img);
+	
+	MPI_Scatter(&(img_view(0,0)), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 	if (rank == 0) {
 		y = minY;
 		for (int i = 0; i < height/np; ++i) {
 			x = minX;
 			for (int j = 0; j < width; ++j) {
-				img_view(j, i) = render(mandelbrot(x, y)/512.0);
+				procdata[j][i] = mandelbrot(x, y)/512.0;
 				x += jt;
 			}
 			y += it;
@@ -78,12 +96,14 @@ main (int argc, char* argv[])
 		for (int i = (height/np) * (rank); i < (height/np) * (rank + 1); ++i) {
 			x = minX;
 			for (int j = 0; j < width; ++j) {
-				img_view(j, i) = render(mandelbrot(x, y)/512.0);
+				procdata[j][i] = mandelbrot(x, y)/512.0;
 				x += jt;
 			}
 			y += (it * double(np));
 		}
 	}
+	
+	MPI_Gather(&(img_view(0,0)), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
 	MPI_Barrier (MPI_COMM_WORLD); /* Synchronize the nodes */
 	if (rank == 0) {
 		gil::png_write_view("mandelbrot.png", const_view(img));
