@@ -78,37 +78,38 @@ main (int argc, char* argv[])
 	gil::rgb8_image_t img(height, width);
 	auto img_view = gil::view(img);
 	
-	MPI_Scatter(&(data[0][0]), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
+	//MPI_Scatter(&(data[0][0]), height/np, MPI_FLOAT, &(procdata[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
 	if (rank == 0) {
 		y = minY;
 		for (int i = 0; i < height/np; ++i) {
 			x = minX;
 			for (int j = 0; j < width; ++j) {
-				procdata[j][i] = mandelbrot(x, y)/512.0;
+				procdata[j][i] = mandelbrot(x, y);
 				x += jt;
 			}
 			y += it;
 		}
 	}
 	else {
-		y = minY + (it * double(rank));
-		for (int i = (height/np) * (rank); i < (height/np) * (rank + 1); ++i) {
+		y = minY + (it * (height/np) * (rank)); 
+		for (int i = (height/np) * (rank); i < (height/np) * (rank + 1); ++i) { // splits by number of processes (i.e 500-999 if 1000 px and 2 processes)
 			x = minX;
 			for (int j = 0; j < width; ++j) {
-				procdata[j][i] = mandelbrot(x, y)/512.0;
+				procdata[j][i] = mandelbrot(x, y);
+				printf("%d ", y);
 				x += jt;
 			}
-			y += (it * double(np));
+			y += it;
 		}
 	}
 	
 	MPI_Gather(&(procdata[0][0]), height/np, MPI_FLOAT, &(data[0][0]), height/np, MPI_FLOAT, 0, MPI_COMM_WORLD);
-	MPI_Barrier (MPI_COMM_WORLD); /* Synchronize the nodes */
+	
 	if (rank == 0) {
 		for (int i = 0; i < height; ++i) {
 			for (int j = 0; j < width; ++j) {
-				 img_view(j, i) = render(data[j][i]);
+				 img_view(j, i) = render(data[j][i]/512.0);
 			}
 		}
 	}
