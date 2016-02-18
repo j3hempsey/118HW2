@@ -91,9 +91,10 @@ using namespace std;
 
      //data array for the temp chunk
      float **tempdata;
+     float **data;
+     data = contig2dArray(width, height);
      int *temp; //junk variable
 
-     tempdata = contig2dArray(width, height);
      //set chunk size
      chunk_details[0] = 500;
      //set chunk row start
@@ -107,11 +108,20 @@ using namespace std;
               //send the chunk details out
        printf("Sending next chunk...\n");
        MPI_Send(&(chunk_details[0]), 2, MPI_INT, status.MPI_SOURCE, DATA, MPI_COMM_WORLD);
+        tempdata = contig2dArray(width, chunk_details[0]);
+
        printf("Waiting for chunk...\n");
        MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
                 status.MPI_SOURCE, DATA, MPI_COMM_WORLD, &status);
+       for (int i = 0; i < chunk_details[0]; ++i)
+       {
+        for(int j = 0; j < width; ++j)
+        {
+          data[j][chunk_details[1] + i] = tempdata[j][i];
+        }
+       }
        //increment start row
-       break;
+       //break;
        chunk_details[1] += chunk_details[0];
      //   return 1;
      }
@@ -141,12 +151,12 @@ using namespace std;
    }
    else
    {
-     float **data;
-     int *junk;
-    int *chunk_details;
-    chunk_details = (int*)malloc(sizeof(int)*2);
-     MPI_Status status;
-     int done = 0;
+      float **data;
+      int *junk;
+      int *chunk_details;
+      chunk_details = (int*)malloc(sizeof(int)*2);
+      MPI_Status status;
+      int done = 0;
 
      while (done == 0)
      {
@@ -165,11 +175,10 @@ using namespace std;
          data = contig2dArray(width, chunk_details[0]);
 
          printf("Calculating row:%d size: %d\n", chunk_details[1], chunk_details[0]);
-         y = minY;//+ (it * double(chunk_details[1]));
+         y = minY + (it * double(chunk_details[1]));
          for(int i = 0; i < chunk_details[0]; ++i)
          {
            x = minX;
-           printf("i: %d\n", i);
            for (int j = 0; j < width; ++j)
            {
              data[j][i] = mandelbrot(x, y) / 512.0;

@@ -1,6 +1,6 @@
 #!/bin/bash
 #$ -N Mandelbrot
-#$ -q pub8i
+#$ -q aparna 
 #$ -pe mpi 16
 #$ -R y
 
