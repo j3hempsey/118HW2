@@ -108,7 +108,7 @@ using namespace std;
               //send the chunk details out
        printf("Sending next chunk...\n");
        MPI_Send(&(chunk_details[0]), 2, MPI_INT, status.MPI_SOURCE, DATA, MPI_COMM_WORLD);
-        tempdata = contig2dArray(width, chunk_details[0]);
+       tempdata = contig2dArray(width, chunk_details[0]);
 
        printf("Waiting for chunk...\n");
        MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
@@ -122,7 +122,7 @@ using namespace std;
        }
        //increment start row
        //break;
-       chunk_details[1] += chunk_details[0];
+       chunk_details[1] += (chunk_details[0] - 1);
      //   return 1;
      }
      printf("Listening for final request...\n");
@@ -139,7 +139,7 @@ using namespace std;
      {
        for (int j = 0; j < width; ++j)
        {
-         img_view(j, i) = render(tempdata[j][i]);
+         img_view(j, i) = render(data[j][i]);
        }
      }
      free(tempdata[0]);
