@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -N Mandelbrot
 #$ -q aparna 
-#$ -pe mpi 16
+#$ -pe mpi 48
 #$ -R y
 
 #-pe one-node-mpi 1
@@ -20,4 +20,4 @@ module load openmpi-1.8.3/gcc-4.8.3
 # Run the program 
 #mpirun -np 1  ./mandelbrot_serial 1000 1000
 #mpirun -np 4 ./mandelbrot_susie 10000 10000
-mpirun -np 2 ./mandelbrot_ms 1000 1000
+mpirun -np 6 ./mandelbrot_ms 1000 1000

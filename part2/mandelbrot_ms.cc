@@ -96,8 +96,9 @@ float
       data = contig2dArray(width, height);
       int *temp; //junk variable
 
+      int recvrow = 0;
       //set chunk size
-      chunk_details[0] = 500;
+      chunk_details[0] = 100;
       //set chunk row start
       chunk_details[1] = 0;
 
@@ -124,6 +125,7 @@ float
       {
         printf("Waiting for chunk...\n");
         tempdata = contig2dArray(width, chunk_details[0]);
+        MPI_Recv(&(recvrow), 1, MPI_FLOAT, MPI_ANY_SOURCE, REQUEST, MPI_COMM_WORLD, &status);
         MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
                 MPI_ANY_SOURCE, DATA, MPI_COMM_WORLD, &status);
 
@@ -136,7 +138,7 @@ float
         {
           for(int j = 0; j < width; ++j)
           {
-            data[j][chunk_details[1] + i] = tempdata[j][i];
+            data[j][recvrow + i] = tempdata[j][i];
           }
         }
         //increment chunk
@@ -149,6 +151,7 @@ float
       //Recieve final chunks
       for (int i = 1; i < size; ++i)
       {
+        MPI_Recv(&(recvrow), 1, MPI_FLOAT, MPI_ANY_SOURCE, REQUEST, MPI_COMM_WORLD, &status);
         MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
                 MPI_ANY_SOURCE, DATA, MPI_COMM_WORLD, &status);
 
@@ -160,7 +163,7 @@ float
         {
           for(int j = 0; j < width; ++j)
           {
-            data[j][chunk_details[1] + i] = tempdata[j][i];
+            data[j][recvrow + i] = tempdata[j][i];
           }
         }
       }
@@ -202,7 +205,6 @@ float
           y = minY + (it * double(chunk_details[1]));
           for(int i = 0; i < chunk_details[0]; ++i)
           {
-            printf("%d | ", i);
             x = minX;
             for (int j = 0; j < width; ++j)
             {
@@ -213,6 +215,7 @@ float
           }
           printf("Sending data to master...\n");
           //Send data
+          MPI_Send(&(chunk_details[1]), 1, MPI_INT, 0, REQUEST, MPI_COMM_WORLD);
           MPI_Send(&(data[0][0]), (width * chunk_details[0]), MPI_FLOAT, 0, DATA, MPI_COMM_WORLD);
         }
         else
