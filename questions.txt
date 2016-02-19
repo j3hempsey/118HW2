@@ -1,0 +1,15 @@
+1. 0.0000507270 seconds is the minimum time to send a message of any size.
+2. As the message size grows, the slope of the line becomes linear, however in this case of a log-log plot this means it grows polyrathmically. In this case it is about x^2
+3. for m <= 1000, time ~.00005seconds
+       m > 1000, time ~m/10^m
+4. We would hire joe. Susies implementation makes sense for a sequential 
+	program, however when doing this in parallel with mpi, there is no way
+	to "gather" every other row for example. So we can send one big 
+	contiguous junk and spread it out across the main array or send 
+	individual rows. Joes implementation will send contigous chunks that
+	are easier to scatter and gather without the need to loop over the 
+	chunks again
+5. Joes model will probably scale better because we can give individual nodes
+	realatively large chunks to chug along at where as master slave we will
+	likely still have to do a lot of communication depending on the quantities
+	the master sends, however this communication will slow processing down

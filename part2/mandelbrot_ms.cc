@@ -180,7 +180,7 @@ float
      free(tempdata);
      free(chunk_details);
 
-     gil::png_write_view("mandelbrot-test-ms.png", const_view(img));
+     gil::png_write_view("mandelbrot-ms.png", const_view(img));
 
    }
    else

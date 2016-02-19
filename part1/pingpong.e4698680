@@ -1,0 +1,10 @@
+gcc(10):ERROR:105: Unable to locate a modulefile for 'gcc/4.8.3'
+[compute-10-6.local:06809] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_btl_openib: librdmacm.so.1: cannot open shared object file: No such file or directory (ignored)
+[compute-10-6.local:06809] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_mtl_psm: libpsm_infinipath.so.1: cannot open shared object file: No such file or directory (ignored)
+[compute-10-6.local:06809] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_coll_fca: libfca.so.0: cannot open shared object file: No such file or directory (ignored)
+[compute-10-6.local:06809] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_coll_hcoll: libhcoll.so.0: cannot open shared object file: No such file or directory (ignored)
+[compute-10-11.local:06944] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_btl_openib: librdmacm.so.1: cannot open shared object file: No such file or directory (ignored)
+[compute-10-11.local:06944] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_mtl_psm: libpsm_infinipath.so.1: cannot open shared object file: No such file or directory (ignored)
+[compute-10-11.local:06944] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_coll_fca: libfca.so.0: cannot open shared object file: No such file or directory (ignored)
+[compute-10-11.local:06944] mca: base: component_find: unable to open /data/apps/mpi/openmpi-1.8.3/gcc/4.8.3/lib/openmpi/mca_coll_hcoll: libhcoll.so.0: cannot open shared object file: No such file or directory (ignored)
+Could not find/open font when opening font "arial", using internal non-scalable font
