@@ -15,10 +15,11 @@ using namespace std;
 #define WIDTH 1000
 #define HEIGHT 1000
 
+#define END_DATA 2
 #define REQUEST 1
 #define DATA 0
-//TRY CALLOC
- float
+
+float
  **contig2dArray(int rows, int cols) {
    float *data = (float *)malloc(rows*cols*sizeof(float));
      float **array= (float **)malloc(rows*sizeof(float*));
@@ -81,58 +82,88 @@ using namespace std;
    if (rank == 0)
    {
      //Master
-     MPI_Status status;
-     int count;
-    int *chunk_details;
-    chunk_details = (int*)malloc(sizeof(int)*2);
-     //alloc image array
-     gil::rgb8_image_t img(height, width);
-     auto img_view = gil::view(img);
+      MPI_Status status;
+      int count;
+      int *chunk_details;
+      chunk_details = (int*)malloc(sizeof(int)*2);
+      //alloc image array
+      gil::rgb8_image_t img(height, width);
+      auto img_view = gil::view(img);
 
-     //data array for the temp chunk
-     float **tempdata;
-     float **data;
-     data = contig2dArray(width, height);
-     int *temp; //junk variable
+      //data array for the temp chunk
+      float **tempdata;
+      float **data;
+      data = contig2dArray(width, height);
+      int *temp; //junk variable
 
-     //set chunk size
-     chunk_details[0] = 500;
-     //set chunk row start
-     chunk_details[1] = 0;
+      //set chunk size
+      chunk_details[0] = 500;
+      //set chunk row start
+      chunk_details[1] = 0;
 
-     while (chunk_details[1] + chunk_details[0] <= height)
-     {
-       printf("Waiting for request\n");
-       MPI_Recv(&temp, 1,
-         MPI_INT, MPI_ANY_SOURCE, REQUEST, MPI_COMM_WORLD, &status);
-              //send the chunk details out
-       printf("Sending next chunk...\n");
-       MPI_Send(&(chunk_details[0]), 2, MPI_INT, status.MPI_SOURCE, DATA, MPI_COMM_WORLD);
-       tempdata = contig2dArray(width, chunk_details[0]);
-
-       printf("Waiting for chunk...\n");
-       MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
-                status.MPI_SOURCE, DATA, MPI_COMM_WORLD, &status);
-       for (int i = 0; i < chunk_details[0]; ++i)
-       {
-        for(int j = 0; j < width; ++j)
+      //distribute initial
+      for (int i = 1; i < size; ++i)
+      {
+        if (chunk_details[1] + chunk_details[0] > height)
         {
-          data[j][chunk_details[1] + i] = tempdata[j][i];
+          //If we run out of data signal end
+          printf("Encountered end. Sending an end now rank %d.\n", i);
+          MPI_Send(0, 0, MPI_INT, i, END_DATA, MPI_COMM_WORLD);
         }
-       }
-       //increment start row
-       //break;
-       chunk_details[1] += (chunk_details[0] - 1);
-     //   return 1;
-     }
-     printf("Listening for final request...\n");
-     MPI_Recv(&temp, 1,
-       MPI_INT, MPI_ANY_SOURCE, REQUEST, MPI_COMM_WORLD, &status);
-     chunk_details[0] = -1;
-     chunk_details[1] = -1;
-     printf("Sending end.\n");
-     MPI_Send(&(chunk_details[0]), 2, MPI_INT, 1, DATA, MPI_COMM_WORLD);
-     printf("Sent. Rendering...\n");
+        else
+        {
+          //Send work details from array chunk to rank i
+          printf("Initial distribution to rank %d. Chunk[0]: %d, [1]:%d\n", i,
+                chunk_details[0], chunk_details[1]);
+          MPI_Send(&(chunk_details[0]), 2, MPI_INT, i, REQUEST, MPI_COMM_WORLD);
+          chunk_details[1] += (chunk_details[0] - 1);
+        }
+      }
+
+      while (chunk_details[1] + chunk_details[0] <= height)
+      {
+        printf("Waiting for chunk...\n");
+        tempdata = contig2dArray(width, chunk_details[0]);
+        MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
+                MPI_ANY_SOURCE, DATA, MPI_COMM_WORLD, &status);
+
+        //send the chunk details out
+        printf("Sending next chunk...\n");
+        MPI_Send(&(chunk_details[0]), 2, MPI_INT, status.MPI_SOURCE, DATA, MPI_COMM_WORLD);
+
+        //Transfer data to final array
+        for (int i = 0; i < chunk_details[0]; ++i)
+        {
+          for(int j = 0; j < width; ++j)
+          {
+            data[j][chunk_details[1] + i] = tempdata[j][i];
+          }
+        }
+        //increment chunk
+        chunk_details[1] += (chunk_details[0] - 1);
+      }
+      //undo on
+      chunk_details[1] -= (chunk_details[0] + 1);
+
+      printf("Recieving final chunks...\n");
+      //Recieve final chunks
+      for (int i = 1; i < size; ++i)
+      {
+        MPI_Recv(&(tempdata[0][0]), width * chunk_details[0], MPI_FLOAT,
+                MPI_ANY_SOURCE, DATA, MPI_COMM_WORLD, &status);
+
+        //send the chunk details out
+        printf("Sending end signal...\n");
+        MPI_Send(0, 0, MPI_INT, i, END_DATA, MPI_COMM_WORLD);
+        //Transfer data to final array
+        for (int i = 0; i < chunk_details[0]; ++i)
+        {
+          for(int j = 0; j < width; ++j)
+          {
+            data[j][chunk_details[1] + i] = tempdata[j][i];
+          }
+        }
+      }
 
      //render the image
      for (int i = 0; i < height; ++i)
@@ -151,6 +182,7 @@ using namespace std;
    }
    else
    {
+     //Slave
       float **data;
       int *junk;
       int *chunk_details;
@@ -158,42 +190,75 @@ using namespace std;
       MPI_Status status;
       int done = 0;
 
-     while (done == 0)
-     {
-       printf("Sending Request.\n");
-       MPI_Send(&junk, 1, MPI_INT, 0, REQUEST, MPI_COMM_WORLD);
-       printf("Waiting for chunk_details.\n");
-       MPI_Recv(&(chunk_details[0]), 2, MPI_INT, 0, DATA, MPI_COMM_WORLD, &status);
-       printf("details[0]: %d  details[1]: %d\n",chunk_details[0], chunk_details[1]);
-       //Determine if were done or not
-       if (chunk_details[0] == -1 && chunk_details[1] == -1)
-       {
-         done = 1;
-       }
-       else
-       {
-         data = contig2dArray(width, chunk_details[0]);
+      while(done == 0)
+      {
+        printf("[%d] Recieving chunk details.\n", rank);
+        MPI_Recv(&(chunk_details[0]), 2, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        if (status.MPI_TAG != END_DATA)
+        {
+          printf("Calculating row:%d size: %d\n", chunk_details[1], chunk_details[0]);
+          data = contig2dArray(width, chunk_details[0]);
 
-         printf("Calculating row:%d size: %d\n", chunk_details[1], chunk_details[0]);
-         y = minY + (it * double(chunk_details[1]));
-         for(int i = 0; i < chunk_details[0]; ++i)
-         {
-           x = minX;
-           for (int j = 0; j < width; ++j)
-           {
-             data[j][i] = mandelbrot(x, y) / 512.0;
-             x += jt;
-           }
-           y += it;
-         }
-         printf("Sending data...\n");
-         //Send data
-         MPI_Send(&(data[0][0]), (width * chunk_details[0]), MPI_FLOAT, 0, DATA, MPI_COMM_WORLD);
-         free(data[0]);
-         free(data);
-       }
-     }
-     //free
+          y = minY + (it * double(chunk_details[1]));
+          for(int i = 0; i < chunk_details[0]; ++i)
+          {
+            printf("%d | ", i);
+            x = minX;
+            for (int j = 0; j < width; ++j)
+            {
+              data[j][i] = mandelbrot(x, y) / 512.0;
+              x += jt;
+            }
+            y += it;
+          }
+          printf("Sending data to master...\n");
+          //Send data
+          MPI_Send(&(data[0][0]), (width * chunk_details[0]), MPI_FLOAT, 0, DATA, MPI_COMM_WORLD);
+        }
+        else
+        {
+          printf("[%d]Done.\n", rank);
+          done = 1;
+        }
+      }
+      free(data[0]);
+      free(data);
+    //  while (done == 0)
+    //  {
+    //    printf("Sending Request.\n");
+    //    MPI_Send(&junk, 1, MPI_INT, 0, REQUEST, MPI_COMM_WORLD);
+    //    printf("Waiting for chunk_details.\n");
+    //    MPI_Recv(&(chunk_details[0]), 2, MPI_INT, 0, DATA, MPI_COMM_WORLD, &status);
+    //    printf("details[0]: %d  details[1]: %d\n",chunk_details[0], chunk_details[1]);
+    //    //Determine if were done or not
+    //    if (chunk_details[0] == -1 && chunk_details[1] == -1)
+    //    {
+    //      done = 1;
+    //    }
+    //    else
+    //    {
+    //      data = contig2dArray(width, chunk_details[0]);
+     //
+    //      printf("Calculating row:%d size: %d\n", chunk_details[1], chunk_details[0]);
+    //      y = minY + (it * double(chunk_details[1]));
+    //      for(int i = 0; i < chunk_details[0]; ++i)
+    //      {
+    //        x = minX;
+    //        for (int j = 0; j < width; ++j)
+    //        {
+    //          data[j][i] = mandelbrot(x, y) / 512.0;
+    //          x += jt;
+    //        }
+    //        y += it;
+    //      }
+    //      printf("Sending data...\n");
+    //      //Send data
+    //      MPI_Send(&(data[0][0]), (width * chunk_details[0]), MPI_FLOAT, 0, DATA, MPI_COMM_WORLD);
+    //      free(data[0]);
+    //      free(data);
+    //    }
+    //  }
+    //  //free
      free(chunk_details);
    }
    MPI_Finalize();
